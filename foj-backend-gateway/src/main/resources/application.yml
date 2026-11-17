@@ -17,6 +17,13 @@ spring:
           uri: lb://foj-backend-judge-service
           predicates:
             - Path=/api/judge/**
+        - id: foj-ai-service
+          uri: lb://foj-ai-service
+          predicates:
+            - Path=/api/ai/**
+          filters:
+            # AI 服务控制器映射 /ai/**（非 /api/ai/**），剥掉一层 /api 前缀
+            - StripPrefix=1
   application:
     name: foj-backend-gateway
   main:

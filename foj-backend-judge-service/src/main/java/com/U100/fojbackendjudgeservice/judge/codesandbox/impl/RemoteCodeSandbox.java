@@ -19,11 +19,18 @@ public class RemoteCodeSandbox implements CodeSandbox {
 
     private static final String AUTH_REQUEST_SECRET = "secretKey";
 
+    /**
+     * 沙箱服务地址。默认本机：容器化部署时判题服务与沙箱不在同一网络，
+     * 通过 JVM 参数 -Dcodesandbox.url=http://<沙箱服务名>:8090/executeCode 覆盖。
+     */
+    private static final String SANDBOX_URL =
+            System.getProperty("codesandbox.url", "http://localhost:8090/executeCode");
+
 
     @Override
     public ExecuteCodeResponse executeCode(ExecuteCodeRequest executeCodeRequest) {
         System.out.println("远程代码沙箱");
-        String url = "http://localhost:8090/executeCode";
+        String url = SANDBOX_URL;
         String json = JSONUtil.toJsonStr(executeCodeRequest);
         String responseStr = HttpUtil.createPost(url)
                 .header(AUTH_REQUEST_HEADER, AUTH_REQUEST_SECRET)

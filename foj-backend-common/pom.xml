@@ -17,4 +17,19 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <dependencies>
+        <!-- spring-web:提供 @RestControllerAdvice/@ExceptionHandler/Jackson2ObjectMapperBuilder 等,不含内嵌 Tomcat -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+        <!-- servlet API:NetUtils 使用 HttpServletRequest,仅编译期需要,运行时由容器提供(provided 不向下传递) -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>4.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
 </project>

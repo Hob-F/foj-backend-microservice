@@ -1,11 +1,10 @@
 spring:
   session:
     store-type: redis
-  data:
-    redis:
-      host:127.0.0.1
-      port:6379
-        database:1
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 1
   cloud:
     nacos:
       discovery:
@@ -48,5 +47,3 @@ knife4j:
       enabled: true
       # ④ 第四行配置，聚合子服务全部为Swagger2规范的文档
       version: swagger2
-
-     # 必须是 spring: 的子键,缩进两格

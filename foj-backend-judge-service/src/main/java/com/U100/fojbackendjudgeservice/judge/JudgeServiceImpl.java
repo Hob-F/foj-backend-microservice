@@ -1,5 +1,6 @@
 package com.U100.fojbackendjudgeservice.judge;
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.U100.fojbackendcommon.common.ErrorCode;
 import com.U100.fojbackendcommon.exception.BusinessException;
@@ -15,6 +16,7 @@ import com.U100.fojbackendmodel.model.entity.Question;
 import com.U100.fojbackendmodel.model.entity.QuestionSubmit;
 import com.U100.fojbackendmodel.model.enums.QuestionSubmitStatusEnum;
 import com.U100.fojbackendserviceclient.service.QuestionFeignClient;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +24,7 @@ import javax.annotation.Resource;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class JudgeServiceImpl implements JudgeService {
 
@@ -73,7 +76,20 @@ public class JudgeServiceImpl implements JudgeService {
                 .language(language)
                 .inputList(inputList)
                 .build();
-        ExecuteCodeResponse executeCodeResponse = codeSandbox.executeCode(executeCodeRequest);
+        ExecuteCodeResponse executeCodeResponse;
+        try {
+            executeCodeResponse = codeSandbox.executeCode(executeCodeRequest);
+        } catch (Exception e) {
+            // 沙箱调用异常兜底:置为终态"系统错误",不抛异常以免消息反复重投
+            log.error("沙箱调用异常, submitId={}", questionSubmitId, e);
+            return updateSubmitToTerminalState(questionSubmitId, "系统错误");
+        }
+        // 沙箱返回错误状态(2=沙箱错误,如编译错误):置为终态,message 取沙箱返回信息
+        if (executeCodeResponse == null || Integer.valueOf(2).equals(executeCodeResponse.getStatus())) {
+            String message = executeCodeResponse == null ? "系统错误"
+                    : (StrUtil.isNotBlank(executeCodeResponse.getMessage()) ? executeCodeResponse.getMessage() : "编译错误");
+            return updateSubmitToTerminalState(questionSubmitId, message);
+        }
         List<String> outputList = executeCodeResponse.getOutputList();
         // 5）根据沙箱的执行结果，设置题目的判题状态和信息
         JudgeContext judgeContext = new JudgeContext();
@@ -95,5 +111,29 @@ public class JudgeServiceImpl implements JudgeService {
         }
         QuestionSubmit questionSubmitResult = questionFeignClient.getQuestionSubmitById(questionSubmitId);
         return questionSubmitResult;
+    }
+
+    /**
+     * 把提交置为终态(判题完成)。
+     *
+     * <p>用于编译错误/系统错误等场景:判题已结束但结果不是正常通过,
+     * 因此 status 置为 SUCCEED(2),judgeInfo.message 记录错误原因,供前端展示。</p>
+     *
+     * @param questionSubmitId 提交 id
+     * @param message          错误信息(如"编译错误"/"系统错误")
+     * @return 更新后的提交记录
+     */
+    private QuestionSubmit updateSubmitToTerminalState(long questionSubmitId, String message) {
+        JudgeInfo judgeInfo = new JudgeInfo();
+        judgeInfo.setMessage(message);
+        QuestionSubmit questionSubmitUpdate = new QuestionSubmit();
+        questionSubmitUpdate.setId(questionSubmitId);
+        questionSubmitUpdate.setStatus(QuestionSubmitStatusEnum.SUCCEED.getValue());
+        questionSubmitUpdate.setJudgeInfo(JSONUtil.toJsonStr(judgeInfo));
+        boolean update = questionFeignClient.updateQuestionSubmitById(questionSubmitUpdate);
+        if (!update) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "题目状态更新错误");
+        }
+        return questionFeignClient.getQuestionSubmitById(questionSubmitId);
     }
 }

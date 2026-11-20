@@ -27,7 +27,8 @@ public class InitRabbitMqBean {
             Connection connection = factory.newConnection();
             Channel channel = connection.createChannel();
             String EXCHANGE_NAME = "code_exchange";
-            channel.exchangeDeclare(EXCHANGE_NAME, "direct");
+            // durable=true:交换机持久化,broker 重启后不丢失,避免 exchange 丢失导致 404
+            channel.exchangeDeclare(EXCHANGE_NAME, "direct", true);
 
             // 创建队列，随机分配一个队列名称
             String queueName = "code_queue";
